@@ -117,7 +117,7 @@ function fmt(n: number): string {
 
 function packKey(p: PackSize): keyof Multipliers { return `pack${p / 1000}k` as keyof Multipliers }
 function getMult(p: PackSize, m: Multipliers): number { return m[packKey(p)] }
-function calcBase(p: PackSize, m: Multipliers): number { return p + p * getMult(p, m) }
+function calcBase(p: PackSize, m: Multipliers): number { return p * Math.max(1, getMult(p, m)) }
 
 function badgeCls(type: WheelOutcomeType) {
   switch (type) {
@@ -342,7 +342,7 @@ export default function GiveawayTracker() {
                         <Input type="number" min={1} value={tempMults[key]}
                           onChange={e => setTempMults(prev => ({ ...prev, [key]: Number(e.target.value) }))}
                           className="bg-gray-800 border-gray-700 text-white h-8 text-sm" />
-                        <span className="text-gray-500 text-xs shrink-0">= {fmt(p.value + p.value * tempMults[key])}</span>
+                        <span className="text-gray-500 text-xs shrink-0">= {fmt(p.value * Math.max(1, tempMults[key]))}</span>
                       </div>
                     )
                   })}
