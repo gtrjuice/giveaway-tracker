@@ -70,7 +70,7 @@ const PACK_SIZES: { value: PackSize; label: string }[] = [
 ]
 
 const DEFAULT_MULTIPLIERS: Multipliers = {
-  pack10k: 400, pack20k: 400, pack45k: 450, pack100k: 500,
+  pack10k: 0, pack20k: 0, pack45k: 0, pack100k: 0,
 }
 
 const DEFAULT_WHEEL_OUTCOMES: WheelOutcome[] = [
@@ -117,6 +117,7 @@ function fmt(n: number): string {
 
 function packKey(p: PackSize): keyof Multipliers { return `pack${p / 1000}k` as keyof Multipliers }
 function getMult(p: PackSize, m: Multipliers): number { return m[packKey(p)] }
+function calcBase(p: PackSize, m: Multipliers): number { return p + p * getMult(p, m) }
 
 function badgeCls(type: WheelOutcomeType) {
   switch (type) {
@@ -188,7 +189,7 @@ export default function GiveawayTracker() {
   const existingGroups = useMemo(() => Object.keys(wheelGroups), [wheelGroups])
 
   const preview = useMemo(() => {
-    const base    = packSize ? packSize * getMult(packSize, multipliers) : 0
+    const base    = packSize ? calcBase(packSize, multipliers) : 0
     const is2x    = !spinPending && spinOutcome?.type === "multiplier_2x"
     const imm     = !spinPending && spinOutcome?.type === "immediate"  ? spinOutcome.entries : 0
     const next    = !spinPending && spinOutcome?.type === "next_order" ? spinOutcome.entries : 0
@@ -210,7 +211,7 @@ export default function GiveawayTracker() {
   const handleAddOrder = useCallback(() => {
     if (!orderNum.trim() || (!packSize && extraEntries <= 0)) return
     const mult    = packSize ? getMult(packSize, multipliers) : 0
-    const base    = packSize ? packSize * mult : 0
+    const base    = packSize ? calcBase(packSize, multipliers) : 0
     const outcome = spinPending ? null : spinOutcome
     const imm     = outcome?.type === "immediate"     ? outcome.entries : 0
     const next    = outcome?.type === "next_order"    ? outcome.entries : 0
@@ -341,7 +342,7 @@ export default function GiveawayTracker() {
                         <Input type="number" min={1} value={tempMults[key]}
                           onChange={e => setTempMults(prev => ({ ...prev, [key]: Number(e.target.value) }))}
                           className="bg-gray-800 border-gray-700 text-white h-8 text-sm" />
-                        <span className="text-gray-500 text-xs shrink-0">= {fmt(p.value * tempMults[key])}</span>
+                        <span className="text-gray-500 text-xs shrink-0">= {fmt(p.value + p.value * tempMults[key])}</span>
                       </div>
                     )
                   })}
@@ -437,7 +438,7 @@ export default function GiveawayTracker() {
                         {PACK_SIZES.map(p => (
                           <SelectItem key={p.value} value={String(p.value)} className="text-white focus:bg-gray-700 focus:text-white">
                             <span>{p.label}</span>
-                            <span className="text-gray-400 text-xs ml-2">× {getMult(p.value, multipliers)}x = {fmt(p.value * getMult(p.value, multipliers))}</span>
+                            <span className="text-gray-400 text-xs ml-2">{getMult(p.value, multipliers) > 0 ? `× ${getMult(p.value, multipliers)}x = ${fmt(calcBase(p.value, multipliers))}` : `= ${fmt(p.value)} (no promo)`}</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -564,9 +565,9 @@ export default function GiveawayTracker() {
                     <div key={p.value} className="flex items-center justify-between rounded-lg bg-gray-800/50 border border-gray-700/50 px-3 py-2.5">
                       <div>
                         <span className="text-sm font-medium text-white">{p.label}</span>
-                        <span className="text-gray-500 text-xs ml-2">× {getMult(p.value, multipliers)}x</span>
+                        <span className="text-gray-500 text-xs ml-2">{getMult(p.value, multipliers) > 0 ? `× ${getMult(p.value, multipliers)}x` : `(no promo)`}</span>
                       </div>
-                      <span className="font-semibold text-emerald-400">{fmt(p.value * getMult(p.value, multipliers))}</span>
+                      <span className="font-semibold text-emerald-400">{fmt(calcBase(p.value, multipliers))}</span>
                     </div>
                   ))}
                   <p className="text-xs text-gray-500 pt-1 flex items-center gap-1">
