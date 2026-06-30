@@ -200,16 +200,22 @@ export default function GiveawayTracker() {
 
   // Aggregate spin math
   const spinCalc = useMemo(() => {
+    const orderNumNorm = orderNum.trim().toLowerCase()
     const immediateTotal = resolvedSpins.reduce((s,rs) =>
       rs.outcome?.type==="immediate" ? s + rs.outcome.entries : s, 0)
     const is2x = resolvedSpins.some(rs => rs.outcome?.type==="multiplier_2x")
     const nextOrderSpins = resolvedSpins.filter(rs => rs.outcome?.type==="next_order")
-    const generalNextTotal = nextOrderSpins
+    // A "next order" bonus can NEVER be applied to the same order it was spun on —
+    // it must go to a different (future) order, or to the general pending pool.
+    const selfTargetSpins = nextOrderSpins.filter(rs =>
+      orderNumNorm && rs.targetOrderNum.trim().toLowerCase() === orderNumNorm)
+    const validNextOrderSpins = nextOrderSpins.filter(rs => !selfTargetSpins.includes(rs))
+    const generalNextTotal = validNextOrderSpins
       .filter(rs => !rs.targetOrderNum.trim())
       .reduce((s,rs) => s + (rs.outcome?.entries??0), 0)
-    const targetedSpins = nextOrderSpins.filter(rs => rs.targetOrderNum.trim())
-    return { immediateTotal, is2x, generalNextTotal, targetedSpins }
-  }, [resolvedSpins])
+    const targetedSpins = validNextOrderSpins.filter(rs => rs.targetOrderNum.trim())
+    return { immediateTotal, is2x, generalNextTotal, targetedSpins, selfTargetSpins }
+  }, [resolvedSpins, orderNum])
 
   // Targeted bonuses already assigned to the current order number
   const detectedBonuses = useMemo(() =>
@@ -253,6 +259,7 @@ export default function GiveawayTracker() {
 
   const handleAddOrder = useCallback(() => {
     if (!orderNum.trim() || (!packSize && extraEntries<=0 && detectedBonusTotal<=0)) return
+    if (spinCalc.selfTargetSpins.length > 0) return // guard: can't target the same order it was spun on
     const mult    = packSize ? getMult(packSize,multipliers) : 0
     const base    = packSize ? calcBase(packSize,multipliers) : 0
     const is2x    = spinCalc.is2x
@@ -573,17 +580,26 @@ export default function GiveawayTracker() {
                           </div>
 
                           {/* Target order # for next_order spins */}
-                          {isNextOrder&&(
+                          {isNextOrder&&(()=>{
+                            const isSelfTarget = !!orderNum.trim() && fs.targetOrderNum.trim().toLowerCase()===orderNum.trim().toLowerCase()
+                            return (
                             <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:"auto"}} className="overflow-hidden">
                               <div className="flex items-center gap-2 pl-14">
                                 <span className="text-xs text-amber-400 shrink-0">→ Goes to order #</span>
                                 <Input value={fs.targetOrderNum}
                                   onChange={e=>updateSpin(fs.id,{targetOrderNum:e.target.value})}
                                   placeholder="Order # (leave blank = your next order)"
-                                  className="bg-gray-700 border-gray-600 text-white text-xs h-7 placeholder:text-gray-500 font-mono"/>
+                                  className={cn("bg-gray-700 border-gray-600 text-white text-xs h-7 placeholder:text-gray-500 font-mono",
+                                    isSelfTarget&&"border-red-500 focus-visible:ring-red-500")}/>
                               </div>
+                              {isSelfTarget&&(
+                                <p className="text-xs text-red-400 pl-14 mt-1">
+                                  ⚠ This is the same order it was spun on — a next-order bonus must go to a different order. Enter the next order's number, or leave blank for the general pool.
+                                </p>
+                              )}
                             </motion.div>
-                          )}
+                            )
+                          })()}
                         </div>
                       )
                     })}
@@ -683,8 +699,13 @@ export default function GiveawayTracker() {
                     )}
                   </AnimatePresence>
 
+                  {spinCalc.selfTargetSpins.length>0&&(
+                    <p className="text-xs text-red-400 -mt-2">
+                      ⚠ Fix the highlighted spin above before logging — a next-order bonus can't target this same order.
+                    </p>
+                  )}
                   <Button onClick={handleAddOrder}
-                    disabled={!orderNum.trim()||(!packSize&&extraEntries<=0&&detectedBonusTotal<=0)}
+                    disabled={!orderNum.trim()||(!packSize&&extraEntries<=0&&detectedBonusTotal<=0)||spinCalc.selfTargetSpins.length>0}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 h-10">
                     <Plus className="h-4 w-4 mr-2"/> Log Order
                   </Button>
