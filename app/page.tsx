@@ -108,7 +108,7 @@ const TYPE_OPTIONS = [
   { value: "multiplier_2x" as WheelOutcomeType, label: "2× Order boost",       desc: "Doubles base pack entries" },
   { value: "fun"           as WheelOutcomeType, label: "Fun / no entries",     desc: "Just for laughs" },
 ]
-const MAX_SPINS = 6
+// No cap on spins per order
 const BLANK_SPIN = (): FormSpin => ({ id: crypto.randomUUID(), spinId: "", spinPending: false, targetOrderNum: "" })
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -235,8 +235,8 @@ export default function GiveawayTracker() {
 
   // ── Spin form helpers ─────────────────────────────────────────────────────
   const addSpin = useCallback(() => {
-    if (formSpins.length < MAX_SPINS) setFormSpins(p => [...p, BLANK_SPIN()])
-  }, [formSpins.length])
+    setFormSpins(p => [...p, BLANK_SPIN()])
+  }, [])
 
   const removeSpin = useCallback((id: string) => {
     setFormSpins(p => p.length > 1 ? p.filter(s => s.id !== id) : p)
@@ -527,8 +527,8 @@ export default function GiveawayTracker() {
                   {/* ④ Wheel spins */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs text-gray-400 uppercase tracking-wide">④ Wheel Spins ({formSpins.length}/{MAX_SPINS})</Label>
-                      {formSpins.length<MAX_SPINS&&(
+                      <Label className="text-xs text-gray-400 uppercase tracking-wide">④ Wheel Spins ({formSpins.length})</Label>
+                      {(
                         <button onClick={addSpin} className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
                           <Plus className="h-3 w-3"/> Add spin
                         </button>
